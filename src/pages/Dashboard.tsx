@@ -13,6 +13,12 @@ import { GraphViewer } from '@/components/graph/GraphViewer'
 import { formatDateTime } from '@/utils/format'
 import type { GraphEdgeData, GraphNodeData } from '@/types'
 
+function metricValue(status: string, value: number | null | undefined): number | string | null {
+  if (status === 'loading' || status === 'idle') return '…'
+  if (status === 'error') return null
+  return value ?? null
+}
+
 export default function Dashboard() {
   const summary = useAsync(getDashboardSummary, [])
   const risk = useAsync(getRiskOverview, [])
@@ -41,10 +47,10 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Accounts Investigated" value={summary.data?.accounts_investigated ?? (summary.status === 'success' ? null : '…')} icon={Wallet} />
-        <StatCard label="Active Fraud Signals" value={summary.data?.active_fraud_signals ?? (summary.status === 'success' ? null : '…')} icon={ShieldAlert} accent="text-risk-high" />
-        <StatCard label="Suspicious Transactions" value={summary.data?.suspicious_transactions ?? (summary.status === 'success' ? null : '…')} icon={ArrowLeftRight} accent="text-risk-medium" />
-        <StatCard label="Fraud Rings Detected" value={summary.data?.fraud_rings_detected ?? (summary.status === 'success' ? null : '…')} icon={Network} accent="text-risk-critical" />
+        <StatCard label="Accounts Investigated" value={metricValue(summary.status, summary.data?.accounts_investigated)} icon={Wallet} />
+        <StatCard label="Active Fraud Signals" value={metricValue(summary.status, summary.data?.active_fraud_signals)} icon={ShieldAlert} accent="text-risk-high" />
+        <StatCard label="Suspicious Transactions" value={metricValue(summary.status, summary.data?.suspicious_transactions)} icon={ArrowLeftRight} accent="text-risk-medium" />
+        <StatCard label="Fraud Rings Detected" value={metricValue(summary.status, summary.data?.fraud_rings_detected)} icon={Network} accent="text-risk-critical" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -97,20 +103,22 @@ export default function Dashboard() {
             {accounts.status === 'loading' && <LoadingState />}
             {accounts.status === 'error' && <ErrorState error={accounts.error} onRetry={accounts.reload} />}
             {accounts.status === 'success' && accounts.data && (
-              <div className="divide-y divide-base-800">
-                {accounts.data.slice(0, 5).map((a) => (
-                  <Link key={a.account_id} to={`/investigations/accounts/${a.account_id}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-base-850">
-                    <div>
-                      <div className="text-sm font-medium text-ink-100 font-mono">{a.account_id}</div>
-                      <div className="text-xs text-ink-500">{a.person_name} · {a.bank_name}</div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {a.risk && <RiskBadge level={a.risk} size="sm" />}
-                      <span className="text-xs text-ink-500 hidden sm:block">{formatDateTime('2026-08-20T14:00:00')}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
+              accounts.data.length === 0 ? <EmptyState title="No investigations available." icon={Wallet} /> : (
+                <div className="divide-y divide-base-800">
+                  {accounts.data.slice(0, 5).map((a) => (
+                    <Link key={a.account_id} to={`/investigations/accounts/${a.account_id}`} className="flex items-center justify-between px-4 py-2.5 hover:bg-base-850">
+                      <div>
+                        <div className="text-sm font-medium text-ink-100 font-mono">{a.account_id}</div>
+                        <div className="text-xs text-ink-500">{a.person_name} · {a.bank_name}</div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {a.risk && <RiskBadge level={a.risk} size="sm" />}
+                        <span className="text-xs text-ink-500 hidden sm:block">{formatDateTime('2026-08-20T14:00:00')}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )
             )}
           </div>
         </div>

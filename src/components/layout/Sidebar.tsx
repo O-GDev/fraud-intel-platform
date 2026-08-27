@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useState } from 'react'
+import { USE_MOCK_DATA } from '@/api/client'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -66,14 +67,14 @@ export function Sidebar({ mobileOpen, onCloseMobile }: { mobileOpen: boolean; on
           <div className="space-y-1.5 text-xs">
             <div className="flex items-center justify-between text-ink-500">
               <span>API</span>
-              <span className="flex items-center gap-1 text-risk-low">
-                <CircleDot size={10} className="fill-current" /> Connected
+              <span className={`flex items-center gap-1 ${USE_MOCK_DATA ? 'text-risk-medium' : 'text-ink-300'}`}>
+                <CircleDot size={10} className="fill-current" /> {USE_MOCK_DATA ? 'Mock data' : 'Live API'}
               </span>
             </div>
             <div className="flex items-center justify-between text-ink-500">
               <span>Neo4j</span>
-              <span className="flex items-center gap-1 text-risk-low">
-                <CircleDot size={10} className="fill-current" /> Online
+              <span className="flex items-center gap-1 text-ink-300">
+                <CircleDot size={10} className="fill-current" /> Backend managed
               </span>
             </div>
           </div>

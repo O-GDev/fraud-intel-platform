@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: sentry-fraud-intelligence
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: VITE_USE_MOCK_DATA
+        value: "true"

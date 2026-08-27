@@ -30,4 +30,5 @@ export function toApiError(error: unknown): ApiError {
   return { status: 'network', message: 'An unexpected error occurred.' }
 }
 
-export const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA === 'true'
+// The standalone frontend is immediately usable; live API mode is opt-in.
+export const USE_MOCK_DATA = import.meta.env.VITE_USE_MOCK_DATA !== 'false'

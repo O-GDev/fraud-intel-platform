@@ -34,11 +34,10 @@ npm run preview
 
 ## Working without a live backend
 
-Set `VITE_USE_MOCK_DATA=true` in `.env` to run the whole app against static mock
-data in `src/mocks/data.ts` (matching the sample dataset: accounts A001–A008,
-transactions T020–T032, devices D001–D004). This lets the frontend be developed
-and demoed before every backend endpoint exists. Flip it back to `false` to hit
-the real API.
+The frontend defaults to static mock data in `src/mocks/data.ts` (matching the
+sample dataset: accounts A001–A008, transactions T020–T032, devices D001–D004),
+so it can be opened and demoed before every backend endpoint exists. Set
+`VITE_USE_MOCK_DATA=false` in `.env` to hit the real API.
 
 ## Project structure
 
