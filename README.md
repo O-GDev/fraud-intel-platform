@@ -1,8 +1,44 @@
-# Sentry — Fraud Intelligence & Investigation Platform
+# Sentry Fraud Intelligence Platform
 
-A React + TypeScript frontend for a Neo4j/FastAPI fraud-detection backend. Built for
-analysts investigating accounts, transactions, devices, and fraud rings in a
-Nigerian financial-crime context.
+Sentry is a graph-powered fraud investigation application for analysts exploring
+money movement, shared devices, connected accounts, and fraud rings in a Nigerian
+financial-crime scenario. This repository contains the React application, FastAPI
+service, CognoDB/Neo4j data-loading scripts, Cypher queries, tests, and screenshots.
+
+**Hosted demo:** [sentry-fraud-intelligence.vercel.app](https://sentry-fraud-intelligence.vercel.app/)
+
+The demo is configured for the hosted API. The interface includes a mock-data mode
+for local UI exploration when a database is not available.
+
+## Why A Graph Database?
+
+Fraud is a relationship problem, not only a row problem. A graph keeps people,
+accounts, banks, devices, merchants, and transactions connected, letting an analyst
+follow evidence across several hops in one query. Shared-device detection, rapid
+movement through an intermediary, and circular money flows are natural path
+patterns in a graph and avoid many relational joins and staging tables.
+
+## Data Model
+
+```mermaid
+flowchart LR
+	Person -- OWNS --> Account
+	Bank -- PROVIDES --> Account
+	Person -- USES --> Device
+	Account -- SENDS --> Transaction
+	Transaction -- RECEIVED_BY --> Account
+	Transaction -- USES_DEVICE --> Device
+	Transaction -- PAID_TO --> Merchant
+```
+
+| Label | Key properties |
+| --- | --- |
+| `Person` | `id`, `name`, `phone`, `email` |
+| `Bank` | `id`, `name`, `code` |
+| `Account` | `id`, `accountNumber`, `accountType`, `status` |
+| `Device` | `id`, `fingerprint`, `deviceType`, `operatingSystem` |
+| `Transaction` | `id`, `amount`, `currency`, `channel`, `status`, `timestamp` |
+| `Merchant` | `id`, `name`, `category`, `status` |
 
 ## Stack
 
@@ -14,52 +50,64 @@ Nigerian financial-crime context.
 - Recharts (risk overview chart)
 - Lucide React (icons)
 
-## Getting started
+## Repository Layout
+
+```text
+frontend/                 React + TypeScript + Vite application
+backend/app/              FastAPI routes, services, repositories, models, and DB client
+backend/app/queries/      Cypher query catalogue
+backend/scripts/           CognoDB constraints, seed data, and query tests
+docs/screenshots/          Product screenshots
+```
+
+## Setup
+
+### Create The CognoDB Instance
+
+1. Sign in to the CognoDB console and create a project.
+2. Choose **Create instance**, select a region and tier, and name the instance.
+3. Wait until the instance is ready and copy its Bolt URI, username, and password.
+4. Create `backend/.env` using the following values. Never commit this file.
+
+```env
+COGNO_URI=bolt+s://your-instance.bravo.databases.cognodb.com
+COGNO_USERNAME=cognodb
+COGNO_PASSWORD=your-password
+```
+
+### Run The Backend
+
+```bash
+cd backend
+uv sync
+uv run python -m scripts.constraints
+uv run python -m scripts.seeds
+uv run uvicorn app.main:app --reload
+```
+
+The API runs at `http://127.0.0.1:8000`. Production API:
+`https://fraud-detection-backend-dwgv.onrender.com`.
+
+### Run The Frontend
 
 ```bash
 npm install
-cp .env.example .env   # edit VITE_API_BASE_URL if your backend isn't on :8000
+cp .env.example .env
 npm run dev
 ```
 
-The app runs at `http://localhost:5173` by default and expects the FastAPI backend
-at the URL configured in `.env` (`VITE_API_BASE_URL`, default `http://localhost:8000`).
+Set `VITE_API_BASE_URL` to your backend and `VITE_USE_MOCK_DATA=false` for live data.
+The backend must allow the frontend origin through CORS. The deployed Vercel app is
+already allowed by the hosted backend.
+
+With `VITE_USE_MOCK_DATA=true`, the frontend runs without CognoDB and uses the sample
+dataset in `src/mocks/data.ts`.
 
 To build for production:
 
 ```bash
 npm run build
 npm run preview
-```
-
-## Working without a live backend
-
-The frontend defaults to static mock data in `src/mocks/data.ts` (matching the
-sample dataset: accounts A001–A008, transactions T020–T032, devices D001–D004),
-so it can be opened and demoed before every backend endpoint exists. Set
-`VITE_USE_MOCK_DATA=false` in `.env` to hit the real API.
-
-## Project structure
-
-```
-src/
-├── api/            client.ts (axios instance + error normalization), fraudApi.ts (all backend calls)
-├── components/
-│   ├── layout/      Layout, Sidebar, Header
-│   ├── common/       RiskBadge, StatCard, SearchBar, LoadingState, ErrorState, EmptyState, Pagination, StatusPill
-│   ├── graph/        GraphViewer (React Flow), GraphLegend, custom node renderer
-│   ├── dashboard/    RiskOverviewChart
-│   ├── signals/      SignalCard (expandable)
-│   ├── accounts/     AccountTable
-│   ├── transactions/ TransactionTable
-│   ├── devices/      DeviceTable
-│   └── fraud-rings/  FraudRingCard
-├── pages/            one file per route (see below)
-├── hooks/            useAsync — load/error/retry data-fetching hook
-├── types/            shared TypeScript interfaces
-├── utils/            format.ts (currency/date), riskEngine.ts (illustrative scoring)
-├── mocks/            static fallback dataset
-└── routes are declared directly in App.tsx
 ```
 
 ## Routes
@@ -79,19 +127,42 @@ src/
 | `/fraud-rings/:ringId` | Fraud ring investigation |
 | `/settings` | Environment / connection info |
 
-## API layer & backend integration
+## Main Queries
 
-Every backend call lives in `src/api/fraudApi.ts`. Components never call axios
-directly — they call functions like `getAccountInvestigation(id)`,
-`getSharedDevices()`, `getFraudRings()`, etc. Endpoints marked with a
-`TODO: confirm` comment are best-guess paths based on the Repository → Service →
-API structure described for the backend; change the path string there once the
-real route is known, and every caller updates automatically.
+The complete query catalogue is in [backend/app/queries/fraud_detection.cypher](backend/app/queries/fraud_detection.cypher),
+with production execution in `backend/app/repositories/fraud_repository.py`.
 
-If an endpoint isn't available yet (e.g. dashboard aggregate stats), the UI
-shows **"Data unavailable"** instead of a fabricated number.
+- **Shared devices** groups people by connected devices and flags devices used by at least two people.
+- **Rapid money movement** traverses source account, transaction, intermediary account, transaction, and destination, constrained by amount and timestamps.
+- **Circular transactions** finds three-leg paths returning to the originating account and orders IDs to avoid duplicate cycles.
+- **Account investigation** returns owner, bank, devices, transactions, destinations, and connected evidence for one account.
 
-## Risk scoring
+Runtime values are passed as Cypher parameters such as `$account_id`, `$account_ids`,
+and `$minimum_amount`; queries are not assembled through string concatenation.
+
+## API And Frontend Integration
+
+Every frontend request is centralized in `src/api/fraudApi.ts`. The backend currently
+exposes the core routes under `/api/fraud`, including `/dashboard`,
+`/accounts/{account_id}`, `/accounts/{account_id}/network`, `/shared-devices`,
+`/rapid-money-movement`, and `/circular-transactions`. The frontend also defines
+expanded list and summary endpoints for the integration phase; update their path
+strings in one place when those backend routes are enabled.
+
+## Screenshots
+
+![Sentry dashboard](docs/screenshots/frontend-dashboard.png)
+
+![Sentry account investigation](docs/screenshots/frontend-account-investigation.png)
+
+## Validation
+
+```bash
+npm run lint
+npm run build
+```
+
+## Risk Scoring
 
 The backend does not currently return a computed `risk_score`. The UI derives an
 **illustrative risk score** client-side from detected signal types
@@ -99,9 +170,5 @@ The backend does not currently return a computed `risk_score`. The UI derives an
 appears. Once the backend exposes a real `risk_score` field, swap the relevant
 call sites to use it directly instead of `computeIllustrativeScore`.
 
-## Notes
-
-- Currency is formatted as NGN (₦) via `formatCurrency` / `formatCompactCurrency` in `src/utils/format.ts`.
-- Dates are formatted via `formatDate` / `formatDateTime`, expecting ISO strings from the backend.
-- The investigation graph (`GraphViewer`) is used on the dashboard, account investigation, transaction details, device details, and fraud ring pages — pass it `GraphNodeData[]` / `GraphEdgeData[]` and it handles layout, zoom/pan, node-click highlighting, and legend.
-- Responsive down to 390px: sidebar becomes a mobile drawer, tables scroll horizontally.
+The frontend uses NGN currency formatting and responsive tables/sidebar behavior. The
+API's interactive documentation is available at `/docs` on the hosted backend.

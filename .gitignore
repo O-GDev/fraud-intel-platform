@@ -5,3 +5,9 @@ dist
 *.log
 .DS_Store
 *.tsbuildinfo
+
+# Python backend artifacts and local secrets
+__pycache__/
+*.py[oc]
+.venv/
+backend/.env
